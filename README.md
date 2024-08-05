@@ -4,7 +4,7 @@ This repository contains the code for a Streamlit web application that uses a pr
 
 ## Demo
 
-Check out the live demo of the web app [here](https://imageclassificationwebapp-ulgcx4shjvwykzf8fzgqee.streamlit.app/).
+Check out the live demo of the web app <h2>[👉here👈](https://imageclassificationwebapp-ulgcx4shjvwykzf8fzgqee.streamlit.app/)</h2>.
 
 ## Features
 
