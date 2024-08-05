@@ -16,10 +16,16 @@ if uploaded_file is not None:
 
 if uploaded_file is not None:
     with st.spinner('Classifying...'):
+        # Convert image to numpy array and ensure it is writable
         image = np.array(image)
+        image.setflags(write=1)
+        
+        # Preprocess the image
         image = tf.image.resize(image, (224, 224))
         image = np.expand_dims(image, axis=0)
         image = tf.keras.applications.mobilenet_v2.preprocess_input(image)
+        
+        # Predict using the model
         predictions = model.predict(image)
         decoded_predictions = tf.keras.applications.mobilenet_v2.decode_predictions(predictions, top=5)
         
