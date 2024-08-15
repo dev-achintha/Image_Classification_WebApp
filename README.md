@@ -1,6 +1,6 @@
 # Image Classification Web App
 
-This repository contains the code for a Streamlit web application that uses a pre-trained MobileNetV2 model to classify images. The app allows users to upload an image and adjust the confidence threshold for the classification results.
+This repository contains the code for a Streamlit web application that uses a pre-trained MobileNetV2 model to classify images. The app allows users to upload an image, apply filters, adjust the confidence threshold, and visualize the classification results with a heatmap.
 
 ## Demo
 
@@ -9,9 +9,11 @@ Check out the live demo of the web app <h2>[👉here👈](https://imageclassific
 ## Features
 
 - Upload an image (jpg, jpeg, png)
+- Apply image filters (Grayscale, Edge Detection)
 - Adjust the confidence threshold for classification results
-- View the top 5 predicted classes with confidence scores
+- View the top 10 predicted classes with confidence scores
 - Visualize the predictions using a horizontal bar chart
+- Display a Class Activation Map (heatmap) to highlight regions influencing the model's prediction
 
 ## Installation
 
@@ -43,6 +45,9 @@ import tensorflow as tf
 from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
+import time
+import cv2
 
 # Load pre-trained MobileNetV2 model
 @st.cache_resource
@@ -51,48 +56,70 @@ def load_model():
 
 model = load_model()
 
-# Sidebar for file upload and parameters
+# Sidebar for file upload, filters, and parameters
 st.sidebar.title("Image Classification")
 uploaded_file = st.sidebar.file_uploader("Upload an Image", type=["jpg", "jpeg", "png"])
 confidence_threshold = st.sidebar.slider("Confidence Threshold", 0.0, 1.0, 0.5)
+show_heatmap = st.sidebar.checkbox("Show Heatmap", value=False)
+apply_filter = st.sidebar.selectbox("Apply Filter", ["None", "Grayscale", "Edge Detection"])
 
 # Main content
 st.title("Image Classification with MobileNetV2")
 
-# Display uploaded image
+# Display uploaded image and classification results
 if uploaded_file is not None:
     image = Image.open(uploaded_file).convert('RGB')
+
+    # Apply selected filter
+    if apply_filter == "Grayscale":
+        image = image.convert('L').convert('RGB')
+    elif apply_filter == "Edge Detection":
+        img_array = np.array(image)
+        img_gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+        img_edges = cv2.Canny(img_gray, 100, 200)
+        image = Image.fromarray(cv2.cvtColor(img_edges, cv2.COLOR_GRAY2RGB))
+
     st.image(image, caption='Uploaded Image', use_column_width=True)
 
-    # Predict and show progress
+    # Classify image and show progress
     with st.spinner('Classifying...'):
-        # Convert image to numpy array and preprocess
-        image = np.array(image).astype(np.float32)
-        image = tf.image.resize(image, (224, 224))
-        image = image / 255.0  # Normalize to [0,1]
-        image = np.expand_dims(image, axis=0)
-
-        # Predict using the model
-        predictions = model.predict(image)
-        decoded_predictions = tf.keras.applications.mobilenet_v2.decode_predictions(predictions, top=5)[0]
+        image_resized = np.array(image).astype(np.float32)
+        image_resized = tf.image.resize(image_resized, (224, 224))
+        image_resized = image_resized / 255.0  # Normalize to [0,1]
+        image_resized = np.expand_dims(image_resized, axis=0)
+        predictions = model.predict(image_resized)
+        decoded_predictions = tf.keras.applications.mobilenet_v2.decode_predictions(predictions, top=10)[0]
 
     # Display results
     st.subheader("Classification Results:")
     for i, (imagenet_id, label, score) in enumerate(decoded_predictions):
-        st.write(f"{i + 1}. {label}: {score * 100:.2f}%")
         if score >= confidence_threshold:
-            st.balloons()
+            st.write(f"{i + 1}. {label}: {score * 100:.2f}%")
 
     # Visualize predictions
     st.subheader("Prediction Visualization:")
     scores = [score for (imagenet_id, label, score) in decoded_predictions]
     labels = [label for (imagenet_id, label, score) in decoded_predictions]
     fig, ax = plt.subplots()
-    ax.barh(labels, scores)
+    sns.barplot(x=scores, y=labels, ax=ax)
     ax.set_xlim(0, 1)
     ax.set_xlabel('Confidence Score')
-    ax.set_title('Top 5 Predictions')
+    ax.set_title('Top 10 Predictions')
     st.pyplot(fig)
+
+    # Display heatmap if selected
+    if show_heatmap:
+        st.subheader("Class Activation Map")
+        heatmap = make_gradcam_heatmap(
+            np.expand_dims(np.array(image.resize((224, 224))), axis=0),
+            model,
+            last_conv_layer_name='Conv_1'
+        )
+        plt.figure(figsize=(8, 6))
+        plt.imshow(image)
+        plt.imshow(heatmap, cmap='jet', alpha=0.5)  # Overlay heatmap
+        plt.axis('off')
+        st.pyplot(plt)
 
 else:
     st.write("Please upload an image to get started!")
@@ -100,4 +127,5 @@ else:
 # Information about the project
 st.sidebar.markdown("---")
 st.sidebar.write("This app uses a pre-trained MobileNetV2 model to classify images.")
-st.sidebar.write("Upload an image and adjust the confidence threshold to see the results!")
+st.sidebar.write("Upload an image, apply filters, adjust the confidence threshold, and view the heatmap to see the results!")
+```
