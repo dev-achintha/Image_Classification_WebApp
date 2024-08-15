@@ -7,17 +7,16 @@ import seaborn as sns
 import time
 import cv2
 
-# Set page configuration
 st.set_page_config(page_title="Image Classification App", layout="wide")
 
-# Load pre-trained MobileNetV2 model
+# load model
 @st.cache_resource
 def load_model():
     return tf.keras.applications.MobileNetV2(weights='imagenet')
 
 model = load_model()
 
-# Function to classify image
+# to classify image
 def classify_image(image):
     if image.mode != 'RGB':
         image = image.convert('RGB')
@@ -34,14 +33,12 @@ st.sidebar.title("Image Classification")
 uploaded_file = st.sidebar.file_uploader("Upload an Image", type=["jpg", "jpeg", "png"])
 confidence_threshold = st.sidebar.slider("Confidence Threshold", 0.0, 1.0, 0.5)
 
-# New features
 show_heatmap = st.sidebar.checkbox("Show Heatmap", value=False)
 apply_filter = st.sidebar.selectbox("Apply Filter", ["None", "Grayscale", "Edge Detection"])
 
-# Create two columns with fixed width
 col1, col2 = st.columns([1, 1])
 
-# Function to display classification results
+# to display classification results
 def display_results(predictions, container, threshold):
     container.subheader("Classification Results")
     filtered_predictions = [pred for pred in predictions if pred[2] >= threshold]
@@ -52,7 +49,7 @@ def display_results(predictions, container, threshold):
         for i, (imagenet_id, label, score) in enumerate(filtered_predictions):
             container.write(f"{i + 1}. {label}: {score * 100:.2f}%")
     
-    # Visualization
+    # to visualize
     container.subheader("Prediction Visualization")
     scores = [score for (_, _, score) in predictions]
     labels = [label for (_, label, _) in predictions]
@@ -66,12 +63,11 @@ def display_results(predictions, container, threshold):
     ax.legend()
     container.pyplot(fig)
 
-# Initialize session state
 if 'current_image' not in st.session_state:
     st.session_state.current_image = Image.open("sample_image.png").convert('RGB')
     st.session_state.current_predictions = classify_image(st.session_state.current_image)
 
-# Update current image and predictions if a new file is uploaded
+# update current image and predictions if a new file is uploaded
 if uploaded_file is not None:
     st.session_state.current_image = Image.open(uploaded_file).convert('RGB')
     with st.spinner('Classifying...'):
@@ -82,7 +78,7 @@ if uploaded_file is not None:
             progress_bar.progress(i + 1)
         st.session_state.current_predictions = classify_image(st.session_state.current_image)
 
-# Apply filter if selected
+# apply filter if selected
 filtered_image = st.session_state.current_image.copy()
 if apply_filter == "Grayscale":
     filtered_image = filtered_image.convert('L').convert('RGB')
@@ -92,10 +88,8 @@ elif apply_filter == "Edge Detection":
     img_edges = cv2.Canny(img_gray, 100, 200)
     filtered_image = Image.fromarray(cv2.cvtColor(img_edges, cv2.COLOR_GRAY2RGB))
 
-# Function to create heatmap
+# to create heatmap
 def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None):
-    # Create a model that maps the input image to the activations of the last conv layer
-    # as well as the output predictions
     grad_model = tf.keras.models.Model(
         [model.inputs],
         [model.get_layer(last_conv_layer_name).output, model.output]
@@ -107,25 +101,18 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
             pred_index = tf.argmax(preds[0])
         class_channel = preds[:, pred_index]
 
-    # This is the gradient of the predicted class with regard to
-    # the output feature map of the last conv layer
     grads = tape.gradient(class_channel, last_conv_layer_output)
 
-    # This is a vector where each entry is the mean intensity of the gradient
-    # over a specific feature map channel
     pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
 
-    # We multiply each channel in the feature map array
-    # by "how important this channel is" with regard to the predicted class
     last_conv_layer_output = last_conv_layer_output[0]
     heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
     heatmap = tf.squeeze(heatmap)
 
-    # For visualization, we will normalize the heatmap between 0 & 1
-    heatmap = tf.maximum(heatmap, 0) / tf.math.reduce_max(heatmap)
+     heatmap = tf.maximum(heatmap, 0) / tf.math.reduce_max(heatmap)
     return heatmap.numpy()
 
-# Display current image and predictions
+# display current image and predictions
 with col1:
     st.image(filtered_image, caption="Current Image", use_column_width=True)
     
@@ -137,17 +124,16 @@ with col1:
             last_conv_layer_name='Conv_1'
         )
 
-        # Display heatmap
+        # display heatmap
         plt.figure(figsize=(8, 6))
         plt.imshow(st.session_state.current_image)
-        plt.imshow(heatmap, cmap='jet', alpha=0.5)  # overlay the heatmap with some transparency
+        plt.imshow(heatmap, cmap='jet', alpha=0.5)
         plt.axis('off')
         st.pyplot(plt)
 
 with col2:
     display_results(st.session_state.current_predictions, col2, confidence_threshold)
 
-# Additional information
 st.sidebar.markdown("---")
 st.sidebar.subheader("About")
 st.sidebar.info("This app uses a pre-trained MobileNetV2 model to classify images. Upload an image, adjust the confidence threshold, apply filters, and view the heatmap to explore the results!")
