@@ -49,28 +49,28 @@ import seaborn as sns
 import time
 import cv2
 
-# Load pre-trained MobileNetV2 model
+# LOAD PRE-TRAINED MOBILENETV2 MODEL
 @st.cache_resource
 def load_model():
     return tf.keras.applications.MobileNetV2(weights='imagenet')
 
 model = load_model()
 
-# Sidebar for file upload, filters, and parameters
+# SIDEBAR FOR FILE UPLOAD, FILTERS, AND PARAMETERS
 st.sidebar.title("Image Classification")
 uploaded_file = st.sidebar.file_uploader("Upload an Image", type=["jpg", "jpeg", "png"])
 confidence_threshold = st.sidebar.slider("Confidence Threshold", 0.0, 1.0, 0.5)
 show_heatmap = st.sidebar.checkbox("Show Heatmap", value=False)
 apply_filter = st.sidebar.selectbox("Apply Filter", ["None", "Grayscale", "Edge Detection"])
 
-# Main content
+# MAIN CONTENT
 st.title("Image Classification with MobileNetV2")
 
-# Display uploaded image and classification results
+# DISPLAY UPLOADED IMAGE AND CLASSIFICATION RESULTS
 if uploaded_file is not None:
     image = Image.open(uploaded_file).convert('RGB')
 
-    # Apply selected filter
+    # APPLY SELECTED FILTER
     if apply_filter == "Grayscale":
         image = image.convert('L').convert('RGB')
     elif apply_filter == "Edge Detection":
@@ -81,22 +81,22 @@ if uploaded_file is not None:
 
     st.image(image, caption='Uploaded Image', use_column_width=True)
 
-    # Classify image and show progress
+    # CLASSIFY IMAGE AND SHOW PROGRESS
     with st.spinner('Classifying...'):
         image_resized = np.array(image).astype(np.float32)
         image_resized = tf.image.resize(image_resized, (224, 224))
-        image_resized = image_resized / 255.0  # Normalize to [0,1]
+        image_resized = image_resized / 255.0  # NORMALIZE TO [0,1]
         image_resized = np.expand_dims(image_resized, axis=0)
         predictions = model.predict(image_resized)
         decoded_predictions = tf.keras.applications.mobilenet_v2.decode_predictions(predictions, top=10)[0]
 
-    # Display results
+    # DISPLAY RESULTS
     st.subheader("Classification Results:")
     for i, (imagenet_id, label, score) in enumerate(decoded_predictions):
         if score >= confidence_threshold:
             st.write(f"{i + 1}. {label}: {score * 100:.2f}%")
 
-    # Visualize predictions
+    # VISUALIZE PREDICTIONS
     st.subheader("Prediction Visualization:")
     scores = [score for (imagenet_id, label, score) in decoded_predictions]
     labels = [label for (imagenet_id, label, score) in decoded_predictions]
@@ -107,7 +107,7 @@ if uploaded_file is not None:
     ax.set_title('Top 10 Predictions')
     st.pyplot(fig)
 
-    # Display heatmap if selected
+    # DISPLAY HEATMAP IF SELECTED
     if show_heatmap:
         st.subheader("Class Activation Map")
         heatmap = make_gradcam_heatmap(
@@ -117,14 +117,14 @@ if uploaded_file is not None:
         )
         plt.figure(figsize=(8, 6))
         plt.imshow(image)
-        plt.imshow(heatmap, cmap='jet', alpha=0.5)  # Overlay heatmap
+        plt.imshow(heatmap, cmap='jet', alpha=0.5)  # OVERLAY HEATMAP
         plt.axis('off')
         st.pyplot(plt)
 
 else:
     st.write("Please upload an image to get started!")
 
-# Information about the project
+# INFORMATION ABOUT THE PROJECT
 st.sidebar.markdown("---")
 st.sidebar.write("This app uses a pre-trained MobileNetV2 model to classify images.")
 st.sidebar.write("Upload an image, apply filters, adjust the confidence threshold, and view the heatmap to see the results!")
